@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Study Aggregator</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4a90e2;
+            --secondary: #2c3e50;
+            --bg: #f4f7f6;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .search-section {
+            background: var(--white);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        input {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            width: 250px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 12px 25px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background: #357abd;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .card {
+            background: var(--white);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        h2 {
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 10px;
+            color: var(--secondary);
+        }
+
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+            margin-bottom: 15px;
+        }
+
+        .video-container iframe {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            border-radius: 8px;
+        }
+
+        .link-item {
+            margin-bottom: 12px;
+            display: block;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .link-item:hover {
+            text-decoration: underline;
+        }
+
+        #wiki-content {
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .diagram-box {
+            background: #eee;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1><i class="fas fa-book-reader"></i> Study Material Aggregator</h1>
+        <p>Enter a subject and topic to generate your customized study dashboard.</p>
+    </header>
+
+    <div class="search-section">
+        <input type="text" id="subject" placeholder="Subject (e.g., Biology)">
+        <input type="text" id="topic" placeholder="Topic (e.g., Mitosis)">
+        <button onclick="fetchAllData()">Generate Study Material</button>
+    </div>
+
+    <div class="dashboard" id="dashboard" style="display:none;">
+        <div class="card">
+            <h2><i class="fab fa-youtube"></i> Video Lectures</h2>
+            <div id="youtube-results">Loading...</div>
+        </div>
+
+        <div class="card">
+            <h2><i class="fab fa-wikipedia-w"></i> Quick Summary</h2>
+            <div id="wiki-content">Loading...</div>
+        </div>
+
+        <div class="card">
+            <h2><i class="fas fa-link"></i> Useful Resources</h2>
+            <div id="google-results">Loading...</div>
+        </div>
+
+        <div class="card">
+            <h2><i class="fas fa-notes-medical"></i> Notes & Diagrams</h2>
+            <div id="notes-content">
+                <p><strong>Key Concept:</strong> Enter a topic to see visualized notes.</p>
+                <div id="diagram-area" class="diagram-box">
+                    Visual diagrams will be suggested here.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // REPLACE THESE WITH YOUR ACTUAL API KEYS
+    const GOOGLE_API_KEY = 'YOUR_GOOGLE_API_KEY';
+    const SEARCH_ENGINE_ID = 'YOUR_SEARCH_ENGINE_ID';
+    const YOUTUBE_API_KEY = 'YOUR_YOUTUBE_API_KEY';
+
+    async function fetchAllData() {
+        const subject = document.getElementById('subject').value;
+        const topic = document.getElementById('topic').value;
+        const query = `${subject} ${topic}`;
+
+        if (!subject || !topic) {
+            alert("Please fill in both fields");
+            return;
+        }
+
+        document.getElementById('dashboard').style.display = 'grid';
+
+        fetchWikipedia(topic);
+        fetchYouTube(query);
+        fetchGoogleSearch(query);
+        generateNotes(subject, topic);
+    }
+
+    // 1. Wikipedia API
+    async function fetchWikipedia(topic) {
+        const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(topic)}`;
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            document.getElementById('wiki-content').innerHTML = `
+                <p>${data.extract || 'No summary found.'}</p>
+                <a href="${data.content_urls?.desktop.page}" target="_blank">Read more on Wikipedia</a>
+            `;
+        } catch (error) {
+            document.getElementById('wiki-content').innerHTML = "Error loading Wikipedia.";
+        }
+    }
+
+    // 2. YouTube API
+    async function fetchYouTube(query) {
+        const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=3&q=${encodeURIComponent(query + ' lecture')}&type=video&key=${YOUTUBE_API_KEY}`;
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            let html = '';
+            data.items.forEach(item => {
+                html += `
+                    <div class="video-container">
+                        <iframe src="https://www.youtube.com/embed/${item.id.videoId}" frameborder="0" allowfullscreen></iframe>
+                    </div>
+                    <p><strong>${item.snippet.title}</strong></p>
+                `;
+            });
+            document.getElementById('youtube-results').innerHTML = html || 'No videos found.';
+        } catch (error) {
+            document.getElementById('youtube-results').innerHTML = "Error loading YouTube. Check API Key.";
+        }
+    }
+
+    // 3. Google Custom Search API
+    async function fetchGoogleSearch(query) {
+        const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${SEARCH_ENGINE_ID}&q=${encodeURIComponent(query + ' study notes pdf')}`;
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            let html = '';
+            data.items.slice(0, 5).forEach(item => {
+                html += `<a class="link-item" href="${item.link}" target="_blank">${item.title}</a>`;
+            });
+            document.getElementById('google-results').innerHTML = html || 'No links found.';
+        } catch (error) {
+            document.getElementById('google-results').innerHTML = "Error loading search results. Check API Key.";
+        }
+    }
+
+    // 4. Dynamic Notes & Diagram Suggestions
+    function generateNotes(subject, topic) {
+        const notesArea = document.getElementById('notes-content');
+        const diagramArea = document.getElementById('diagram-area');
+        
+        notesArea.innerHTML = `
+            <h3>Study Guide: ${topic}</h3>
+            <ul>
+                <li>Review basic fundamentals of ${subject}.</li>
+                <li>Focus on the relationship between ${topic} and modern applications.</li>
+                <li>Highlight key terminology used in ${topic}.</li>
+            </ul>
+        `;
+        
+        // Placeholder for Diagram logic
+        diagramArea.innerHTML = `
+            <p>Recommended Diagram: [Structure of ${topic}]</p>
+            <p><small>Search Google Images for detailed "${topic} labeled diagram" to supplement these notes.</small></p>
+        `;
+    }
+</script>
+
+</body>
+</html>
